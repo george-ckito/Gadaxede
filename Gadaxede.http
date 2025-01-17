@@ -1,0 +1,6 @@
+@Gadaxede_HostAddress = http://localhost:5212
+
+GET {{Gadaxede_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
