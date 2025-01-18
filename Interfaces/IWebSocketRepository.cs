@@ -5,8 +5,8 @@ namespace Gadaxede.Interfaces
 {
     public interface IWebSocketRepository
     {
-        Task HandleWebSocketAsync(WebSocket webSocket, User user);
-        public void SaveSignalData(User user, Sensor sensor, int value);
-        public Signal GetSignalData(User user, Sensor sensor);
+        Task HandleWebSocketAsync(WebSocket webSocket);
+        public void SaveSignalData(Sensor sensor, int value);
+        public Signal GetSignalData(Sensor sensor);
     }
 }

@@ -36,17 +36,12 @@ namespace Gadaxede.Migrations
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
                     b.Property<double>("Value")
                         .HasColumnType("double precision");
 
                     b.HasKey("Id");
 
                     b.HasIndex("SensorId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Measurements");
                 });
@@ -83,9 +78,6 @@ namespace Gadaxede.Migrations
                     b.Property<int>("SensorId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Value")
                         .HasColumnType("integer");
 
@@ -93,65 +85,7 @@ namespace Gadaxede.Migrations
 
                     b.HasIndex("SensorId");
 
-                    b.HasIndex("UserId");
-
                     b.ToTable("Signals");
-                });
-
-            modelBuilder.Entity("Gadaxede.Models.User", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("DiscordUsername")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Password")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("SensorUser", b =>
-                {
-                    b.Property<int>("SensorsId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("SensorsId", "UserId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("SensorUser");
                 });
 
             modelBuilder.Entity("Gadaxede.Models.Measurement", b =>
@@ -162,15 +96,7 @@ namespace Gadaxede.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Gadaxede.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Sensor");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Gadaxede.Models.Signal", b =>
@@ -181,30 +107,7 @@ namespace Gadaxede.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Gadaxede.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Sensor");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SensorUser", b =>
-                {
-                    b.HasOne("Gadaxede.Models.Sensor", null)
-                        .WithMany()
-                        .HasForeignKey("SensorsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Gadaxede.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

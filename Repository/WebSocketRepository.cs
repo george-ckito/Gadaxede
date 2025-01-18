@@ -21,7 +21,7 @@ public class WebSocketRepository : IWebSocketRepository
         _dbContext = dbContext;
     }
 
-    public async Task HandleWebSocketAsync(WebSocket webSocket, User user)
+    public async Task HandleWebSocketAsync(WebSocket webSocket)
     {
         _clients.Add(webSocket);
         var buffer = new byte[1024 * 4];
@@ -41,7 +41,7 @@ public class WebSocketRepository : IWebSocketRepository
                         var sensor = _dbContext.Sensors.FirstOrDefault(s => s.Name == sens.Key);
                         if (sensor != null)
                         {
-                            await SaveRecordToDatabaseAsync(user, sensor, sens.Value);
+                            await SaveRecordToDatabaseAsync(sensor, sens.Value);
                         }
                     }
                 }
@@ -72,23 +72,25 @@ public class WebSocketRepository : IWebSocketRepository
         }
     }
 
-    private async Task SaveRecordToDatabaseAsync(User user, Sensor sensor, double value)
+    private async Task SaveRecordToDatabaseAsync( Sensor sensor, double value)
     {
         _dbContext.Measurements.Add(new Measurement
         {
-            User = user,
             Sensor = sensor,
             Value = value,
-            Timestamp = DateTime.Now
+            Timestamp = DateTime.UtcNow
         });
         await _dbContext.SaveChangesAsync();
     }
 
-    public void SaveSignalData(User user, Sensor sensor, int value) {
+    public void SaveSignalData( Sensor sensor, int value) {
         var model = _dbContext.Signals.FirstOrDefault(m =>
-            m.User == user && m.Sensor == sensor);
-        if (model == null)
-            _dbContext.Signals.Add(new Signal { User = user, Sensor = sensor, Value = value });
+             m.Sensor == sensor);
+        if (model == null) { 
+            _dbContext.Signals.Add(new Signal { Sensor = sensor, Value = value });
+            _dbContext.SaveChanges();
+
+        }
         else
         {
             model.Value = value;
@@ -96,14 +98,11 @@ public class WebSocketRepository : IWebSocketRepository
         }
     }
 
-    public Signal GetSignalData(User user, Sensor sensor)
+    public Signal GetSignalData(Sensor sensor)
     {
         return _dbContext.Signals.FirstOrDefault(m =>
-            m.User == user && m.Sensor == sensor) ?? new Signal();
+            m.Sensor == sensor) ?? new Signal();
     }
 
-    public ICollection<Measurement> GetUserMeasurements(User user)
-    {
-        return _dbContext.Measurements.Where(s => s.User == user).ToList();
-    }
+    
 }

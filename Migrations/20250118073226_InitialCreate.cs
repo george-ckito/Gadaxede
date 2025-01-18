@@ -27,31 +27,11 @@ namespace Gadaxede.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Users",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Username = table.Column<string>(type: "text", nullable: false),
-                    FirstName = table.Column<string>(type: "text", nullable: false),
-                    LastName = table.Column<string>(type: "text", nullable: false),
-                    Email = table.Column<string>(type: "text", nullable: false),
-                    Password = table.Column<string>(type: "text", nullable: false),
-                    PhoneNumber = table.Column<string>(type: "text", nullable: false),
-                    DiscordUsername = table.Column<string>(type: "text", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Users", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Measurements",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
                     SensorId = table.Column<int>(type: "integer", nullable: false),
                     Value = table.Column<double>(type: "double precision", nullable: false),
                     Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
@@ -65,36 +45,6 @@ namespace Gadaxede.Migrations
                         principalTable: "Sensors",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Measurements_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "SensorUser",
-                columns: table => new
-                {
-                    SensorsId = table.Column<int>(type: "integer", nullable: false),
-                    UserId = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SensorUser", x => new { x.SensorsId, x.UserId });
-                    table.ForeignKey(
-                        name: "FK_SensorUser_Sensors_SensorsId",
-                        column: x => x.SensorsId,
-                        principalTable: "Sensors",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_SensorUser_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -103,7 +53,6 @@ namespace Gadaxede.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
                     SensorId = table.Column<int>(type: "integer", nullable: false),
                     Value = table.Column<int>(type: "integer", nullable: false)
                 },
@@ -116,12 +65,6 @@ namespace Gadaxede.Migrations
                         principalTable: "Sensors",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Signals_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
@@ -130,24 +73,9 @@ namespace Gadaxede.Migrations
                 column: "SensorId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Measurements_UserId",
-                table: "Measurements",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SensorUser_UserId",
-                table: "SensorUser",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Signals_SensorId",
                 table: "Signals",
                 column: "SensorId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Signals_UserId",
-                table: "Signals",
-                column: "UserId");
         }
 
         /// <inheritdoc />
@@ -157,16 +85,10 @@ namespace Gadaxede.Migrations
                 name: "Measurements");
 
             migrationBuilder.DropTable(
-                name: "SensorUser");
-
-            migrationBuilder.DropTable(
                 name: "Signals");
 
             migrationBuilder.DropTable(
                 name: "Sensors");
-
-            migrationBuilder.DropTable(
-                name: "Users");
         }
     }
 }
