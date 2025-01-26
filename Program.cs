@@ -12,6 +12,7 @@ builder.Services.AddTransient<Seed>();
 builder.Services.AddControllers();
 builder.Services.AddScoped<ISensorRepository, SensorRepository>();
 builder.Services.AddScoped<IWebSocketRepository, WebSocketRepository>();
+builder.Services.AddScoped<IHistoryRepository, HistoryRepository>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

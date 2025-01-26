@@ -21,8 +21,9 @@ public class WebSocketController : Controller
     {
         if (HttpContext.WebSockets.IsWebSocketRequest)
         {
-            var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-            await _webSocketRepository.HandleWebSocketAsync(webSocket);
+            using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+            var socketFinishedTcs = new TaskCompletionSource<object>();
+            await _webSocketRepository.HandleWebSocketAsync(webSocket, socketFinishedTcs);
         }
         else
         {

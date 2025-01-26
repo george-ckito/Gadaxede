@@ -1,5 +1,6 @@
 ﻿using Gadaxede.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Gadaxede.Data
 {
@@ -14,12 +15,18 @@ namespace Gadaxede.Data
         {
             modelBuilder.Entity<Measurement>()
                 .HasOne(m => m.Sensor)
-                .WithMany() // Measurements is not directly navigable from Sensor
-                .HasForeignKey("SensorId");
+                .WithMany()
+                .HasForeignKey(m => m.SensorId);
             modelBuilder.Entity<Signal>()
                 .HasOne(m => m.Sensor)
-                .WithMany() // Measurements is not directly navigable from User
-                .HasForeignKey("SensorId");
+                .WithMany()
+                .HasForeignKey(m => m.SensorId);
+            var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+            );
+
+            modelBuilder.Entity<Measurement>().Property(e => e.Timestamp).HasConversion(dateTimeConverter);
         }
     }
 }

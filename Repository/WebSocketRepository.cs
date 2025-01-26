@@ -1,18 +1,15 @@
 ﻿using Gadaxede.Data;
 using Gadaxede.Interfaces;
 using Gadaxede.Models;
-using MessagePack;
 using Newtonsoft.Json;
-using System.Collections;
-using System.Linq;
+using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
-using System.Text.Json;
 
 public class WebSocketRepository : IWebSocketRepository
 {
     private readonly ILogger<WebSocketRepository> _logger;
-    private readonly List<WebSocket> _clients = new List<WebSocket>();
+    private readonly ConcurrentDictionary<string, WebSocket> _clients = new();
     private readonly DataContext _dbContext;
 
     public WebSocketRepository(ILogger<WebSocketRepository> logger, DataContext dbContext)
@@ -21,40 +18,62 @@ public class WebSocketRepository : IWebSocketRepository
         _dbContext = dbContext;
     }
 
-    public async Task HandleWebSocketAsync(WebSocket webSocket)
+    public async Task HandleWebSocketAsync(WebSocket webSocket, TaskCompletionSource<object> socketFinishedTcs)
     {
-        _clients.Add(webSocket);
-        var buffer = new byte[1024 * 4];
-        while (webSocket.State == WebSocketState.Open)
-        {
-            var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+        var clientId = Guid.NewGuid().ToString();
+        _clients[clientId] = webSocket;
 
-            if (result.MessageType == WebSocketMessageType.Text)
+        var buffer = new byte[1024 * 4];
+
+        try
+        {
+            while (webSocket.State == WebSocketState.Open)
             {
-                var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                try
+                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+
+                if (result.MessageType == WebSocketMessageType.Text)
                 {
-                    var sensorData = JsonConvert.DeserializeObject<Dictionary<string, double>>(message);
-                    await SendToAllClientsAsync(message);
-                    foreach (var sens in sensorData)
+                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    await HandleMessageAsync(message, webSocket);
+                }
+                else if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling WebSocket connection.");
+        }
+        finally
+        {
+            await CloseWebSocketAsync(clientId, webSocket);
+            socketFinishedTcs.TrySetResult(null);
+        }
+    }
+
+    private async Task HandleMessageAsync(string message, WebSocket webSocket)
+    {
+        try
+        {
+            var sensorData = JsonConvert.DeserializeObject<Dictionary<string, double>>(message);
+            if (sensorData != null)
+            {
+                foreach (var sens in sensorData)
+                {
+                    var sensor = _dbContext.Sensors.FirstOrDefault(s => s.Name == sens.Key);
+                    if (sensor != null)
                     {
-                        var sensor = _dbContext.Sensors.FirstOrDefault(s => s.Name == sens.Key);
-                        if (sensor != null)
-                        {
-                            await SaveRecordToDatabaseAsync(sensor, sens.Value);
-                        }
+                        await SaveRecordToDatabaseAsync(sensor, sens.Value);
                     }
                 }
-                catch (Newtonsoft.Json.JsonException ex)
-                {
-                    Console.WriteLine($"Error parsing JSON: {ex.Message}");
-                }
             }
-            else if (result.MessageType == WebSocketMessageType.Close)
-            {
-                _clients.Remove(webSocket);
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-            }
+            await SendToAllClientsAsync(message);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError($"Invalid JSON received: {ex.Message}");
         }
     }
 
@@ -63,46 +82,46 @@ public class WebSocketRepository : IWebSocketRepository
         var buffer = Encoding.UTF8.GetBytes(message);
         var segment = new ArraySegment<byte>(buffer);
 
-        foreach (var client in _clients)
+        foreach (var client in _clients.Values)
         {
             if (client.State == WebSocketState.Open)
             {
-                await client.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+                try
+                {
+                    await client.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending message to WebSocket client.");
+                }
             }
         }
     }
 
-    private async Task SaveRecordToDatabaseAsync( Sensor sensor, double value)
+    private async Task SaveRecordToDatabaseAsync(Sensor sensor, double value)
     {
-        _dbContext.Measurements.Add(new Measurement
+        try
         {
-            Sensor = sensor,
-            Value = value,
-            Timestamp = DateTime.UtcNow
-        });
-        await _dbContext.SaveChangesAsync();
-    }
-
-    public void SaveSignalData( Sensor sensor, int value) {
-        var model = _dbContext.Signals.FirstOrDefault(m =>
-             m.Sensor == sensor);
-        if (model == null) { 
-            _dbContext.Signals.Add(new Signal { Sensor = sensor, Value = value });
-            _dbContext.SaveChanges();
-
+            _dbContext.Measurements.Add(new Measurement
+            {
+                Sensor = sensor,
+                Value = value,
+                Timestamp = DateTime.Now
+            });
+            await _dbContext.SaveChangesAsync();
         }
-        else
+        catch (Exception ex)
         {
-            model.Value = value;
-            _dbContext.SaveChanges();
+            _logger.LogError(ex, "Error saving measurement to database.");
         }
     }
 
-    public Signal GetSignalData(Sensor sensor)
+    private async Task CloseWebSocketAsync(string clientId, WebSocket webSocket)
     {
-        return _dbContext.Signals.FirstOrDefault(m =>
-            m.Sensor == sensor) ?? new Signal();
+        if (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
+        {
+            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+        }
+        _clients.TryRemove(clientId, out _);
     }
-
-    
 }
