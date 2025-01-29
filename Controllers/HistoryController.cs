@@ -20,7 +20,9 @@ namespace Gadaxede.Controllers
         [HttpGet("minute")]
         public IActionResult GetMinuteHistory()
         {
-            return Ok(_historyRepository.GetMinuteMeasurements());
+            var result = _historyRepository.GetMinuteMeasurements();
+            var answer = new List<Dictionary<string, object>>();
+            return Ok();
         }
         [HttpGet("hour")]
         public IActionResult GetHourHistory()

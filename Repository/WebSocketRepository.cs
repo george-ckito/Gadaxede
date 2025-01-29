@@ -9,7 +9,7 @@ using System.Text;
 public class WebSocketRepository : IWebSocketRepository
 {
     private readonly ILogger<WebSocketRepository> _logger;
-    private readonly ConcurrentDictionary<string, WebSocket> _clients = new();
+    static private readonly List<WebSocket> _clients = new();
     private readonly DataContext _dbContext;
 
     public WebSocketRepository(ILogger<WebSocketRepository> logger, DataContext dbContext)
@@ -20,9 +20,9 @@ public class WebSocketRepository : IWebSocketRepository
 
     public async Task HandleWebSocketAsync(WebSocket webSocket, TaskCompletionSource<object> socketFinishedTcs)
     {
-        var clientId = Guid.NewGuid().ToString();
-        _clients[clientId] = webSocket;
-
+        _clients.Add(webSocket);
+        _logger.LogInformation("Client connected");
+        _logger.LogInformation($"Client count: {_clients.Count}");
         var buffer = new byte[1024 * 4];
 
         try
@@ -48,7 +48,8 @@ public class WebSocketRepository : IWebSocketRepository
         }
         finally
         {
-            await CloseWebSocketAsync(clientId, webSocket);
+            await CloseWebSocketAsync(webSocket);
+            _logger.LogInformation("Client disconnected");
             socketFinishedTcs.TrySetResult(null);
         }
     }
@@ -66,6 +67,7 @@ public class WebSocketRepository : IWebSocketRepository
                     if (sensor != null)
                     {
                         await SaveRecordToDatabaseAsync(sensor, sens.Value);
+                        Console.WriteLine("Pretend this is saving data to db");
                     }
                 }
             }
@@ -80,20 +82,27 @@ public class WebSocketRepository : IWebSocketRepository
     private async Task SendToAllClientsAsync(string message)
     {
         var buffer = Encoding.UTF8.GetBytes(message);
-        var segment = new ArraySegment<byte>(buffer);
 
-        foreach (var client in _clients.Values)
+        foreach (var websocket in _clients)
         {
-            if (client.State == WebSocketState.Open)
+            _logger.LogInformation("Processing client with state: {State}", websocket.State);
+
+            if (websocket.State == WebSocketState.Open)
             {
                 try
                 {
-                    await client.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+                    var segment = new ArraySegment<byte>(buffer);
+                    await websocket.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+                    _logger.LogInformation("Message sent to client with ID");
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error sending message to WebSocket client.");
+                    _logger.LogError(ex, "Error sending message to WebSocket client");
                 }
+            }
+            else
+            {
+                _logger.LogWarning("Processing client with state: {State}", websocket.State);
             }
         }
     }
@@ -116,12 +125,31 @@ public class WebSocketRepository : IWebSocketRepository
         }
     }
 
-    private async Task CloseWebSocketAsync(string clientId, WebSocket webSocket)
+    private async Task CloseWebSocketAsync(WebSocket webSocket)
     {
         if (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
         {
             await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
         }
-        _clients.TryRemove(clientId, out _);
+        Console.WriteLine("WebSocket closed");
+        _clients.Remove(webSocket);
+    }
+    public void SaveSignalData(Sensor sensor, int value)
+    {
+        var model = _dbContext.Signals.FirstOrDefault(m => m.Sensor == sensor);
+        if (model == null)
+        {
+            _dbContext.Signals.Add(new Signal { Sensor = sensor, Value = value });
+        }
+        else
+        {
+            model.Value = value;
+        }
+        _dbContext.SaveChanges();
+    }
+
+    public Signal? GetSignalData(Sensor sensor)
+    {
+        return _dbContext.Signals.FirstOrDefault(m => m.Sensor == sensor);
     }
 }

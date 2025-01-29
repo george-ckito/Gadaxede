@@ -4,7 +4,7 @@ using Gadaxede.Interfaces;
 using Gadaxede.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Builder;
-
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -20,11 +20,19 @@ builder.Services.AddDbContext<DataContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
-
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(
+                      policy =>
+                      {
+                          policy.AllowAnyHeader().AllowAnyOrigin().AllowAnyMethod();
+});
+});
 var app = builder.Build();
 
 // Enable WebSockets
 app.UseWebSockets();
+app.UseCors();
 
 if (args.Length == 1 && args[0].ToLower() == "seeddata")
     SeedData(app);
@@ -40,12 +48,8 @@ void SeedData(IHost app)
     }
 }
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 //app.UseHttpsRedirection();     //uncomment if u want https
 
