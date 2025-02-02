@@ -69,7 +69,7 @@ public class WebSocketRepository : IWebSocketRepository
                     {
                         var maximum = _dbContext.Signals.FirstOrDefault(s => s.Sensor == sensor);
                         await SaveRecordToDatabaseAsync(sensor, sens.Value);
-                        signal = sens.Value > maximum.Value;
+                        if (sens.Value > maximum.Value) signal = true; 
                     }
                 }
             }
