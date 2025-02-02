@@ -59,6 +59,7 @@ public class WebSocketRepository : IWebSocketRepository
         try
         {
             var sensorData = JsonConvert.DeserializeObject<Dictionary<string, double>>(message);
+            bool signal = false;
             if (sensorData != null)
             {
                 foreach (var sens in sensorData)
@@ -66,12 +67,14 @@ public class WebSocketRepository : IWebSocketRepository
                     var sensor = _dbContext.Sensors.FirstOrDefault(s => s.Name == sens.Key);
                     if (sensor != null)
                     {
+                        var maximum = _dbContext.Signals.FirstOrDefault(s => s.Sensor == sensor);
                         await SaveRecordToDatabaseAsync(sensor, sens.Value);
-                        Console.WriteLine("Pretend this is saving data to db");
+                        signal = sens.Value > maximum.Value;
                     }
                 }
             }
             await SendToAllClientsAsync(message);
+            if (signal) await SendToAllClientsAsync("SIG");
         }
         catch (JsonException ex)
         {
